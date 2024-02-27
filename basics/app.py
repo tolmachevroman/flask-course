@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, url_for, redirect, session
+from flask import Flask, jsonify, request, url_for, redirect, session, render_template
 
 app = Flask(__name__)
 
@@ -15,7 +15,7 @@ def index():
 @app.route('/home/<string:name>', methods=['GET', 'POST'])
 def home(name):
     session['name'] = name
-    return '<h1>Hello {}, you\'re on the home page</h1>'.format(name)
+    return render_template('home.html', name=name, display=False, mylist=[1, 2, 3, 4, 5])
 
 
 @app.route('/json')
@@ -37,11 +37,7 @@ def query():
 @app.route('/theform', methods=['GET', 'POST'])
 def theform():
     if request.method == 'GET':
-        return '''<form method="POST" action="/theform">
-                <input type="text" name="name">
-                <input type="text" name="location">
-                <input type="submit">
-                </form>'''
+        return render_template('form.html')
     else:
         name = request.form['name']
         location = request.form['location']
