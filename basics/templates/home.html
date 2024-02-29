@@ -15,5 +15,9 @@
 
 <img src="{{ url_for('static', filename='books.jpg') }}" alt="">
 
+{% for result in results %}
+<h3>ID: {{ result.id }} Name: {{ result.name }} Location: {{ result.location }}</h3>
+{% endfor %}
+
 {% include 'include_this.html' %}
 {% endblock %}
