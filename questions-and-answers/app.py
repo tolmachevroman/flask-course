@@ -31,7 +31,12 @@ def get_current_user():
 def index():
     user = get_current_user()
 
-    return render_template('home.html', user=user)
+    db = get_db()
+    questions = db.execute('select questions.id, questions.question, askers.name as asker_name, experts.name as expert_name \
+                           from questions join users as askers on askers.id = questions.asked_by_id \
+                           join users as experts on experts.id = questions.expert_id where questions.answer is not null').fetchall()
+
+    return render_template('home.html', user=user, questions=questions)
 
 # ------------------------------
 # Registration Routes
@@ -93,8 +98,8 @@ def login_post():
 # ------------------------------
 
 
-@app.route('/question')
-def question():
+@app.route('/question/<question_id>')
+def question(question_id):
     user = get_current_user()
 
     return render_template('question.html', user=user)
@@ -104,11 +109,28 @@ def question():
 # ------------------------------
 
 
-@app.route('/answer')
-def answer():
+@app.get('/answer/<question_id>')
+def answer_get(question_id):
     user = get_current_user()
 
-    return render_template('answer.html', user=user)
+    db = get_db()
+    question = db.execute('select id, question from questions where id = ?', [
+                          question_id]).fetchone()
+
+    return render_template('answer.html', user=user, question=question)
+
+
+@app.post('/answer/<question_id>')
+def answer_post(question_id):
+    user = get_current_user()
+    answer = request.form['answer']
+
+    db = get_db()
+    db.execute('update questions set answer = ? where id = ?',
+               [answer, question_id])
+    db.commit()
+
+    return redirect(url_for('unanswered'))
 
 # ------------------------------
 # Ask Routes
@@ -139,10 +161,17 @@ def ask_post():
 
     return redirect(url_for('index'))
 
+# ------------------------------
+# Unanswered Routes
+# ------------------------------
+
 
 @app.route('/unanswered')
 def unanswered():
     user = get_current_user()
+
+    if user is None:
+        return redirect(url_for('index'))
 
     db = get_db()
     questions = db.execute(
