@@ -57,7 +57,9 @@ def register_post():
                [name, hashed_password, False, False])
     db.commit()
 
-    return '<h1>User created!</h1>'
+    session['user'] = name
+
+    return redirect(url_for('index'))
 
 # ------------------------------
 # Login Routes
@@ -82,7 +84,7 @@ def login_post():
 
     if user and check_password_hash(user['password'], password):
         session['user'] = user['name']
-        return '<h1>User logged in!</h1>'
+        return redirect(url_for('index'))
 
     return '<h1>Error!</h1>'
 
@@ -108,26 +110,58 @@ def answer():
 
     return render_template('answer.html', user=user)
 
+# ------------------------------
+# Ask Routes
+# ------------------------------
 
-@app.route('/ask')
-def ask():
+
+@app.get('/ask')
+def ask_get():
     user = get_current_user()
 
-    return render_template('ask.html', user=user)
+    db = get_db()
+    experts = db.execute(
+        'select id, name from users where is_expert = True').fetchall()
+
+    return render_template('ask.html', user=user, experts=experts)
+
+
+@app.post('/ask')
+def ask_post():
+    user = get_current_user()
+    question = request.form['question']
+    expert = request.form['expert']
+
+    db = get_db()
+    db.execute('insert into questions (question, asked_by_id, expert_id) values (?, ?, ?)',
+               [question, user['id'], expert])
+    db.commit()
+
+    return redirect(url_for('index'))
 
 
 @app.route('/unanswered')
 def unanswered():
     user = get_current_user()
 
-    return render_template('unanswered.html', user=user)
+    db = get_db()
+    questions = db.execute(
+        'select questions.id, questions.question, users.name \
+         from questions join users on users.id = questions.asked_by_id \
+         where questions.answer is null and questions.expert_id = ?', [user['id']]).fetchall()
+
+    return render_template('unanswered.html', user=user, questions=questions)
 
 
 @app.route('/users')
 def users():
     user = get_current_user()
 
-    return render_template('users.html', user=user)
+    db = get_db()
+    users = db.execute(
+        'select id, name, is_expert, is_admin from users').fetchall()
+
+    return render_template('users.html', user=user, users=users)
 
 # ------------------------------
 # Logout Routes
@@ -137,6 +171,20 @@ def users():
 @app.route('/logout')
 def logout():
     session.pop('user', None)
+    return redirect(url_for('index'))
+
+
+@app.route('/promote/<user_id>')
+def promote(user_id):
+    user = get_current_user()
+
+    if not user:
+        return redirect(url_for('index'))
+
+    db = get_db()
+    db.execute('update users set is_expert = True where id = ?', [user['id']])
+    db.commit()
+
     return redirect(url_for('index'))
 
 
