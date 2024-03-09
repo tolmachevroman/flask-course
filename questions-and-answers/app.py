@@ -27,7 +27,7 @@ def get_current_user():
 # ------------------------------
 
 
-@app.route('/')
+@app.get('/')
 def index():
     user = get_current_user()
 
@@ -58,6 +58,13 @@ def register_post():
         password, method='pbkdf2:sha256', salt_length=8)
 
     db = get_db()
+
+    existing_user = db.execute(
+        'select id from users where name = ?', [name]).fetchone()
+
+    if existing_user:
+        return render_template('register.html', error='User already exists')
+
     db.execute('insert into users (name, password, is_expert, is_admin) values (?, ?, ?, ?)',
                [name, hashed_password, False, False])
     db.commit()
@@ -98,11 +105,19 @@ def login_post():
 # ------------------------------
 
 
-@app.route('/question/<question_id>')
+@app.get('/question/<question_id>')
 def question(question_id):
     user = get_current_user()
 
-    return render_template('question.html', user=user)
+    if not user:
+        return redirect(url_for('index'))
+
+    db = get_db()
+    question = db.execute('select questions.id, questions.question, askers.name as asker_name, experts.name as expert_name \
+                           from questions join users as askers on askers.id = questions.asked_by_id \
+                           join users as experts on experts.id = questions.expert_id where questions.id = ?', [question_id]).fetchone()
+
+    return render_template('question.html', user=user, question=question)
 
 # ------------------------------
 # Answer Routes
@@ -112,6 +127,9 @@ def question(question_id):
 @app.get('/answer/<question_id>')
 def answer_get(question_id):
     user = get_current_user()
+
+    if not user or not user['is_expert']:
+        return redirect(url_for('index'))
 
     db = get_db()
     question = db.execute('select id, question from questions where id = ?', [
@@ -123,6 +141,10 @@ def answer_get(question_id):
 @app.post('/answer/<question_id>')
 def answer_post(question_id):
     user = get_current_user()
+
+    if not user or not user['is_expert']:
+        return redirect(url_for('index'))
+
     answer = request.form['answer']
 
     db = get_db()
@@ -141,6 +163,9 @@ def answer_post(question_id):
 def ask_get():
     user = get_current_user()
 
+    if not user:
+        return redirect(url_for('index'))
+
     db = get_db()
     experts = db.execute(
         'select id, name from users where is_expert = True').fetchall()
@@ -151,6 +176,10 @@ def ask_get():
 @app.post('/ask')
 def ask_post():
     user = get_current_user()
+
+    if not user:
+        return redirect(url_for('index'))
+
     question = request.form['question']
     expert = request.form['expert']
 
@@ -170,7 +199,7 @@ def ask_post():
 def unanswered():
     user = get_current_user()
 
-    if user is None:
+    if not user:
         return redirect(url_for('index'))
 
     db = get_db()
@@ -182,15 +211,36 @@ def unanswered():
     return render_template('unanswered.html', user=user, questions=questions)
 
 
+# ------------------------------
+# Admin Routes
+# ------------------------------
+
 @app.route('/users')
 def users():
     user = get_current_user()
+
+    if not user or not user['is_admin']:
+        return redirect(url_for('index'))
 
     db = get_db()
     users = db.execute(
         'select id, name, is_expert, is_admin from users').fetchall()
 
     return render_template('users.html', user=user, users=users)
+
+
+@app.route('/promote/<user_id>')
+def promote(user_id):
+    user = get_current_user()
+
+    if not user or not user['is_admin']:
+        return redirect(url_for('index'))
+
+    db = get_db()
+    db.execute('update users set is_expert = True where id = ?', [user['id']])
+    db.commit()
+
+    return redirect(url_for('index'))
 
 # ------------------------------
 # Logout Routes
@@ -200,20 +250,6 @@ def users():
 @app.route('/logout')
 def logout():
     session.pop('user', None)
-    return redirect(url_for('index'))
-
-
-@app.route('/promote/<user_id>')
-def promote(user_id):
-    user = get_current_user()
-
-    if not user:
-        return redirect(url_for('index'))
-
-    db = get_db()
-    db.execute('update users set is_expert = True where id = ?', [user['id']])
-    db.commit()
-
     return redirect(url_for('index'))
 
 

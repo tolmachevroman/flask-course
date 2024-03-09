@@ -59,6 +59,11 @@
     <div class="row">
       <div class="col-lg-12">
         <div class="well bs-component">
+          {% if error %}
+          <div class="alert alert-danger">
+            <strong>Error: </strong> {{ error }}
+          </div>
+          {% endif %}
           <form class="form-horizontal" method="POST" action="{{ url_for('register_post') }}">
             <fieldset>
               <div class="form-group">
