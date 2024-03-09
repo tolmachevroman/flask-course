@@ -94,11 +94,15 @@ def login_post():
     user = db.execute(
         'select id, name, password from users where name = ?', [name]).fetchone()
 
-    if user and check_password_hash(user['password'], password):
+    if not user:
+        error = 'Incorrect username'
+    elif not check_password_hash(user['password'], password):
+        error = 'Incorrect password'
+    else:
         session['user'] = user['name']
         return redirect(url_for('index'))
 
-    return '<h1>Error!</h1>'
+    return render_template('login.html', error=error)
 
 # ------------------------------
 # Question Routes
