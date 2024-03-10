@@ -1,7 +1,22 @@
 from flask import Flask, g, request, jsonify
 from database import get_db
+from functools import wraps
 
 app = Flask(__name__)
+
+api_username = 'admin'
+api_password = 'password'
+
+
+def protected(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth = request.authorization
+        if auth and auth.username == api_username and auth.password == api_password:
+            return f(*args, **kwargs)
+        else:
+            return jsonify({'error': 'Authentication failed'}), 403
+    return decorated_function
 
 
 @app.teardown_appcontext
@@ -11,6 +26,7 @@ def close_db(error):
 
 
 @app.get('/members')
+@protected
 def get_members():
     db = get_db()
     members = db.execute(
