@@ -12,12 +12,21 @@ def close_db(error):
 
 @app.get('/members')
 def get_members():
-    return 'members list'
+    db = get_db()
+    members = db.execute(
+        'select id, name, email, level from members').fetchall()
+    return jsonify([{'id': member['id'], 'name': member['name'], 'email': member['email'], 'level': member['level']} for member in members])
 
 
 @app.get('/members/<int:member_id>')
 def get_member(member_id):
-    return f'member {member_id}'
+    db = get_db()
+    member = db.execute(
+        'select id, name, email, level from members where id = ?', [member_id]).fetchone()
+    if member:
+        return jsonify({'id': member['id'], 'name': member['name'], 'email': member['email'], 'level': member['level']})
+    else:
+        return jsonify({'error': 'Member not found'}), 404
 
 
 @app.post('/members')
