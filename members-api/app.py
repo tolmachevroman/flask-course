@@ -49,12 +49,35 @@ def add_member():
 
 @app.put('/members/<int:member_id>')
 def update_member(member_id):
-    return f'member {member_id} updated'
+    db = get_db()
+    member = db.execute(
+        'select id, name, email, level from members where id = ?', [member_id]).fetchone()
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+    else:
+        updated_member_data = request.json
+        name = updated_member_data['name']
+        email = updated_member_data['email']
+        level = updated_member_data['level']
+
+        db.execute('update members set name = ?, email = ?, level = ? where id = ?', [
+                   name, email, level, member_id])
+        db.commit()
+
+        return jsonify({'id': member_id, 'name': name, 'email': email, 'level': level})
 
 
 @app.delete('/members/<int:member_id>')
 def delete_member(member_id):
-    return f'member {member_id} deleted'
+    db = get_db()
+    member = db.execute(
+        'select id, name, email, level from members where id = ?', [member_id]).fetchone()
+    if not member:
+        return jsonify({'error': 'Member not found'}), 404
+    else:
+        db.execute('delete from members where id = ?', [member_id])
+        db.commit()
+        return jsonify({'message': 'Member deleted successfully'})
 
 
 if __name__ == '__main__':
