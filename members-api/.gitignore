@@ -1,0 +1,16 @@
+# created by virtualenv automatically
+
+/bin
+/lib
+
+# Ignore the virtual environment
+venv
+.env
+
+# Ignore Python cache files/directories
+__pycache__
+*.pyc
+
+# Ignore development environment config
+.vscode
+.idea
